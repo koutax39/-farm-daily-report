@@ -1,0 +1,850 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>農業作業日報アプリ</title>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <style>
+    :root {
+      --green: #2f855a;
+      --light-green: #e6f4ea;
+      --orange: #ed8936;
+      --light-orange: #fff4e6;
+      --blue: #3182ce;
+      --light-blue: #e6f0ff;
+      --purple: #805ad5;
+      --light-purple: #f0e7ff;
+      --red: #e53e3e;
+      --light-red: #ffecec;
+      --gray: #4a5568;
+      --light-gray: #f7fafc;
+      --border: #e2e8f0;
+      --text: #1a202c;
+      --muted: #718096;
+      --bg: #f8fafc;
+      --white: #ffffff;
+      --shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      padding-bottom: 88px;
+    }
+
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      background: var(--white);
+      padding: 14px 16px 12px;
+      box-shadow: 0 2px 12px rgba(15, 23, 42, 0.06);
+    }
+
+    .app-title {
+      font-size: 18px;
+      font-weight: 800;
+      margin: 0 0 6px;
+    }
+
+    .date-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .date-display {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--gray);
+    }
+
+    .date-actions {
+      display: flex;
+      gap: 6px;
+    }
+
+    button,
+    input,
+    select,
+    textarea {
+      font: inherit;
+    }
+
+    button {
+      border: none;
+      border-radius: 12px;
+      padding: 10px 12px;
+      font-weight: 700;
+      cursor: pointer;
+      background: var(--green);
+      color: white;
+    }
+
+    button.secondary {
+      background: var(--light-gray);
+      color: var(--gray);
+      border: 1px solid var(--border);
+    }
+
+    button.danger {
+      background: var(--red);
+    }
+
+    button.full {
+      width: 100%;
+      padding: 14px;
+      font-size: 16px;
+    }
+
+    main {
+      padding: 14px;
+      max-width: 640px;
+      margin: 0 auto;
+    }
+
+    .panel {
+      background: var(--white);
+      border-radius: 18px;
+      padding: 14px;
+      box-shadow: var(--shadow);
+      margin-bottom: 14px;
+    }
+
+    .weather-box {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    .field {
+      margin-bottom: 12px;
+    }
+
+    label {
+      display: block;
+      font-size: 13px;
+      font-weight: 800;
+      margin-bottom: 6px;
+    }
+
+    .label-blue { color: var(--blue); }
+    .label-green { color: var(--green); }
+    .label-orange { color: var(--orange); }
+    .label-purple { color: var(--purple); }
+    .label-red { color: var(--red); }
+    .label-gray { color: var(--gray); }
+
+    input,
+    select,
+    textarea {
+      width: 100%;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px;
+      background: var(--white);
+      font-size: 16px;
+    }
+
+    textarea {
+      min-height: 84px;
+      resize: vertical;
+    }
+
+    .time-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .worker-grid,
+    .task-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .choice {
+      border: 1px solid var(--border);
+      background: var(--light-gray);
+      color: var(--gray);
+      border-radius: 14px;
+      padding: 12px 8px;
+      text-align: center;
+      font-size: 14px;
+      font-weight: 800;
+    }
+
+    .choice.active {
+      background: var(--green);
+      color: white;
+      border-color: var(--green);
+    }
+
+    .work-card {
+      background: var(--white);
+      border-radius: 18px;
+      padding: 14px;
+      box-shadow: var(--shadow);
+      margin-bottom: 12px;
+      border-left: 6px solid var(--green);
+    }
+
+    .work-time {
+      font-size: 18px;
+      font-weight: 900;
+      margin-bottom: 10px;
+    }
+
+    .tag-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 8px;
+    }
+
+    .tag {
+      border-radius: 999px;
+      padding: 5px 9px;
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .tag.green { background: var(--light-green); color: var(--green); }
+    .tag.orange { background: var(--light-orange); color: var(--orange); }
+    .tag.blue { background: var(--light-blue); color: var(--blue); }
+    .tag.purple { background: var(--light-purple); color: var(--purple); }
+    .tag.red { background: var(--light-red); color: var(--red); }
+    .tag.gray { background: var(--light-gray); color: var(--gray); }
+
+    .card-note {
+      font-size: 13px;
+      color: var(--gray);
+      line-height: 1.5;
+      margin-top: 8px;
+    }
+
+    .card-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .bottom-tabs {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      background: var(--white);
+      border-top: 1px solid var(--border);
+      padding: 8px 8px calc(8px + env(safe-area-inset-bottom));
+      z-index: 20;
+    }
+
+    .tab-btn {
+      background: transparent;
+      color: var(--muted);
+      padding: 10px 4px;
+      border-radius: 14px;
+      font-size: 13px;
+    }
+
+    .tab-btn.active {
+      background: var(--light-green);
+      color: var(--green);
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    .section-title {
+      font-size: 16px;
+      font-weight: 900;
+      margin: 0 0 12px;
+    }
+
+    .empty {
+      text-align: center;
+      color: var(--muted);
+      padding: 24px 8px;
+      line-height: 1.6;
+    }
+
+    .master-list {
+      display: grid;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .master-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      background: var(--light-gray);
+      border-radius: 12px;
+      padding: 10px;
+      font-weight: 700;
+    }
+
+    .small-btn {
+      padding: 8px 10px;
+      font-size: 12px;
+      border-radius: 10px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1 class="app-title">農業作業日報</h1>
+    <div class="date-row">
+      <div class="date-display" id="dateDisplay"></div>
+      <div class="date-actions">
+        <button class="secondary small-btn" id="prevDateBtn">前日</button>
+        <button class="secondary small-btn" id="todayBtn">今日</button>
+        <button class="secondary small-btn" id="nextDateBtn">翌日</button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section id="dailyTab">
+      <div class="panel">
+        <p class="section-title">今日の基本情報</p>
+        <div class="weather-box">
+          <div class="field">
+            <label class="label-blue">天気</label>
+            <select id="weatherInput">
+              <option value="晴れ">晴れ</option>
+              <option value="曇り">曇り</option>
+              <option value="雨">雨</option>
+              <option value="雪">雪</option>
+              <option value="その他">その他</option>
+            </select>
+          </div>
+          <div class="field">
+            <label class="label-blue">気温</label>
+            <input id="temperatureInput" type="text" inputmode="decimal" placeholder="例：26℃" />
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <p class="section-title" id="formTitle">作業追加</p>
+        <input type="hidden" id="editingId" />
+
+        <div class="time-grid">
+          <div class="field">
+            <label class="label-blue">開始時間</label>
+            <select id="startTime"></select>
+          </div>
+          <div class="field">
+            <label class="label-blue">終了時間</label>
+            <select id="endTime"></select>
+          </div>
+        </div>
+
+        <div class="field">
+          <label class="label-green">圃場・場所</label>
+          <select id="fieldSelect"></select>
+        </div>
+
+        <div class="field">
+          <label class="label-orange">作業内容</label>
+          <div id="taskButtons" class="task-grid"></div>
+        </div>
+
+        <div class="field">
+          <label class="label-purple">作業者</label>
+          <div id="workerButtons" class="worker-grid"></div>
+        </div>
+
+        <div id="harvestExtra" class="field hidden">
+          <label class="label-red">収量</label>
+          <input id="yieldInput" type="text" placeholder="例：120パック、30kg" />
+        </div>
+
+        <div id="materialExtra" class="field hidden">
+          <label class="label-red">使用資材</label>
+          <select id="materialSelect"></select>
+        </div>
+
+        <div class="field">
+          <label class="label-gray">備考</label>
+          <textarea id="noteInput" placeholder="イレギュラー作業や気づいたことを記録"></textarea>
+        </div>
+
+        <button class="full" id="saveWorkBtn">保存する</button>
+        <button class="full secondary hidden" id="cancelEditBtn" style="margin-top:8px;">編集をキャンセル</button>
+      </div>
+
+      <div>
+        <p class="section-title">この日の作業一覧</p>
+        <div id="workList"></div>
+      </div>
+    </section>
+
+    <section id="manageTab" class="hidden">
+      <div id="masterPanels"></div>
+    </section>
+
+    <section id="exportTab" class="hidden">
+      <div class="panel">
+        <p class="section-title">Excel出力</p>
+        <div class="field">
+          <label class="label-blue">出力する週の開始日</label>
+          <input id="exportStartDate" type="date" />
+        </div>
+        <button class="full" id="exportExcelBtn">この週のExcelを出力</button>
+        <p class="card-note">出力したExcelファイルをスマホに保存し、Gmailで会社PCへ送る運用を想定しています。</p>
+      </div>
+    </section>
+  </main>
+
+  <nav class="bottom-tabs">
+    <button class="tab-btn active" data-tab="dailyTab">日報</button>
+    <button class="tab-btn" data-tab="manageTab">管理</button>
+    <button class="tab-btn" data-tab="exportTab">出力</button>
+  </nav>
+
+  <script>
+    const STORAGE_KEY = "farmDailyReportApp.v1";
+
+    const initialData = {
+      selectedDate: toDateKey(new Date()),
+      masters: {
+        workers: ["Aさん", "Bさん", "Cさん"],
+        fields: ["横島事務所側苗床", "ハウス側苗床", "50aハウス", "15aハウス", "パッケージ場"],
+        tasks: ["灌水", "収穫", "パック詰め", "葉かき", "ランナー取り", "苗整理", "追肥", "消毒", "草取り", "片付け", "休憩", "その他"],
+        materials: ["液肥", "農薬", "培土", "資材その他"]
+      },
+      dailyInfo: {},
+      works: []
+    };
+
+    let data = loadData();
+    let selectedTask = data.masters.tasks[0];
+    let selectedWorkers = [];
+
+    const weekday = ["日", "月", "火", "水", "木", "金", "土"];
+
+    function loadData() {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (!saved) return structuredClone(initialData);
+      try {
+        return { ...structuredClone(initialData), ...JSON.parse(saved) };
+      } catch {
+        return structuredClone(initialData);
+      }
+    }
+
+    function saveData() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    }
+
+    function toDateKey(date) {
+      const y = date.getFullYear();
+      const m = String(date.getMonth() + 1).padStart(2, "0");
+      const d = String(date.getDate()).padStart(2, "0");
+      return `${y}-${m}-${d}`;
+    }
+
+    function parseDateKey(key) {
+      const [y, m, d] = key.split("-").map(Number);
+      return new Date(y, m - 1, d);
+    }
+
+    function formatDateDisplay(key) {
+      const date = parseDateKey(key);
+      return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日（${weekday[date.getDay()]}）`;
+    }
+
+    function addDays(key, days) {
+      const date = parseDateKey(key);
+      date.setDate(date.getDate() + days);
+      return toDateKey(date);
+    }
+
+    function makeTimeOptions() {
+      const options = [];
+      for (let h = 5; h <= 20; h++) {
+        for (const m of ["00", "15", "30", "45"]) {
+          if (h === 20 && m !== "00") continue;
+          options.push(`${String(h).padStart(2, "0")}:${m}`);
+        }
+      }
+      return options;
+    }
+
+    function renderTimeSelects() {
+      const times = makeTimeOptions();
+      for (const id of ["startTime", "endTime"]) {
+        const select = document.getElementById(id);
+        select.innerHTML = times.map(t => `<option value="${t}">${t}</option>`).join("");
+      }
+      document.getElementById("startTime").value = "08:00";
+      document.getElementById("endTime").value = "10:00";
+    }
+
+    function render() {
+      document.getElementById("dateDisplay").textContent = formatDateDisplay(data.selectedDate);
+      renderDailyInfo();
+      renderMasters();
+      renderTaskButtons();
+      renderWorkerButtons();
+      renderSelects();
+      renderWorkList();
+      document.getElementById("exportStartDate").value = data.selectedDate;
+    }
+
+    function getDailyInfo() {
+      if (!data.dailyInfo[data.selectedDate]) {
+        data.dailyInfo[data.selectedDate] = { weather: "晴れ", temperature: "" };
+      }
+      return data.dailyInfo[data.selectedDate];
+    }
+
+    function renderDailyInfo() {
+      const info = getDailyInfo();
+      document.getElementById("weatherInput").value = info.weather || "晴れ";
+      document.getElementById("temperatureInput").value = info.temperature || "";
+    }
+
+    function renderSelects() {
+      document.getElementById("fieldSelect").innerHTML = data.masters.fields.map(v => `<option value="${v}">${v}</option>`).join("");
+      document.getElementById("materialSelect").innerHTML = data.masters.materials.map(v => `<option value="${v}">${v}</option>`).join("");
+    }
+
+    function renderTaskButtons() {
+      const box = document.getElementById("taskButtons");
+      box.innerHTML = data.masters.tasks.map(task => `
+        <button type="button" class="choice ${task === selectedTask ? "active" : ""}" data-task="${task}">${task}</button>
+      `).join("");
+      box.querySelectorAll("button").forEach(btn => {
+        btn.addEventListener("click", () => {
+          selectedTask = btn.dataset.task;
+          updateExtras();
+          renderTaskButtons();
+        });
+      });
+      updateExtras();
+    }
+
+    function renderWorkerButtons() {
+      const box = document.getElementById("workerButtons");
+      box.innerHTML = data.masters.workers.map(worker => `
+        <button type="button" class="choice ${selectedWorkers.includes(worker) ? "active" : ""}" data-worker="${worker}">${worker}</button>
+      `).join("");
+      box.querySelectorAll("button").forEach(btn => {
+        btn.addEventListener("click", () => {
+          const worker = btn.dataset.worker;
+          if (selectedWorkers.includes(worker)) {
+            selectedWorkers = selectedWorkers.filter(w => w !== worker);
+          } else {
+            selectedWorkers.push(worker);
+          }
+          renderWorkerButtons();
+        });
+      });
+    }
+
+    function updateExtras() {
+      document.getElementById("harvestExtra").classList.toggle("hidden", selectedTask !== "収穫");
+      document.getElementById("materialExtra").classList.toggle("hidden", !(selectedTask === "追肥" || selectedTask === "消毒"));
+    }
+
+    function renderWorkList() {
+      const list = document.getElementById("workList");
+      const works = data.works
+        .filter(w => w.date === data.selectedDate)
+        .sort((a, b) => a.startTime.localeCompare(b.startTime));
+
+      if (works.length === 0) {
+        list.innerHTML = `<div class="panel empty">まだ作業記録がありません。<br>作業追加から入力してください。</div>`;
+        return;
+      }
+
+      list.innerHTML = works.map(work => `
+        <div class="work-card">
+          <div class="work-time">${work.startTime}〜${work.endTime}</div>
+          <div class="tag-row">
+            <span class="tag green">${work.field}</span>
+            <span class="tag orange">${work.task}</span>
+            <span class="tag purple">${work.workers.join("、")}</span>
+            ${work.yieldAmount ? `<span class="tag red">収量：${work.yieldAmount}</span>` : ""}
+            ${work.material ? `<span class="tag red">資材：${work.material}</span>` : ""}
+          </div>
+          ${work.note ? `<div class="card-note">${escapeHtml(work.note)}</div>` : ""}
+          <div class="card-actions">
+            <button class="secondary" onclick="editWork('${work.id}')">編集</button>
+            <button class="danger" onclick="deleteWork('${work.id}')">削除</button>
+          </div>
+        </div>
+      `).join("");
+    }
+
+    function escapeHtml(str) {
+      return String(str).replace(/[&<>'"]/g, s => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        "'": "&#39;",
+        '"': "&quot;"
+      }[s]));
+    }
+
+    function saveWork() {
+      const startTime = document.getElementById("startTime").value;
+      const endTime = document.getElementById("endTime").value;
+      const field = document.getElementById("fieldSelect").value;
+      const note = document.getElementById("noteInput").value.trim();
+      const yieldAmount = selectedTask === "収穫" ? document.getElementById("yieldInput").value.trim() : "";
+      const material = (selectedTask === "追肥" || selectedTask === "消毒") ? document.getElementById("materialSelect").value : "";
+      const editingId = document.getElementById("editingId").value;
+
+      if (!startTime || !endTime || startTime >= endTime) {
+        alert("開始時間と終了時間を確認してください。");
+        return;
+      }
+      if (selectedWorkers.length === 0) {
+        alert("作業者を1人以上選択してください。");
+        return;
+      }
+
+      const record = {
+        id: editingId || crypto.randomUUID(),
+        date: data.selectedDate,
+        startTime,
+        endTime,
+        field,
+        task: selectedTask,
+        workers: [...selectedWorkers],
+        yieldAmount,
+        material,
+        note,
+        updatedAt: new Date().toISOString()
+      };
+
+      if (editingId) {
+        data.works = data.works.map(w => w.id === editingId ? record : w);
+      } else {
+        data.works.push(record);
+      }
+
+      saveData();
+      resetForm();
+      renderWorkList();
+      alert("保存しました。");
+    }
+
+    function editWork(id) {
+      const work = data.works.find(w => w.id === id);
+      if (!work) return;
+      document.getElementById("editingId").value = work.id;
+      document.getElementById("formTitle").textContent = "作業編集";
+      document.getElementById("startTime").value = work.startTime;
+      document.getElementById("endTime").value = work.endTime;
+      document.getElementById("fieldSelect").value = work.field;
+      selectedTask = work.task;
+      selectedWorkers = [...work.workers];
+      document.getElementById("yieldInput").value = work.yieldAmount || "";
+      document.getElementById("materialSelect").value = work.material || data.masters.materials[0] || "";
+      document.getElementById("noteInput").value = work.note || "";
+      document.getElementById("saveWorkBtn").textContent = "更新する";
+      document.getElementById("cancelEditBtn").classList.remove("hidden");
+      renderTaskButtons();
+      renderWorkerButtons();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    function deleteWork(id) {
+      if (!confirm("この作業記録を削除しますか？")) return;
+      data.works = data.works.filter(w => w.id !== id);
+      saveData();
+      renderWorkList();
+    }
+
+    function resetForm() {
+      document.getElementById("editingId").value = "";
+      document.getElementById("formTitle").textContent = "作業追加";
+      document.getElementById("saveWorkBtn").textContent = "保存する";
+      document.getElementById("cancelEditBtn").classList.add("hidden");
+      document.getElementById("startTime").value = "08:00";
+      document.getElementById("endTime").value = "10:00";
+      document.getElementById("noteInput").value = "";
+      document.getElementById("yieldInput").value = "";
+      selectedTask = data.masters.tasks[0] || "その他";
+      selectedWorkers = [];
+      renderTaskButtons();
+      renderWorkerButtons();
+    }
+
+    function renderMasters() {
+      const configs = [
+        ["workers", "作業者管理"],
+        ["fields", "圃場・場所管理"],
+        ["tasks", "作業内容管理"],
+        ["materials", "使用資材管理"]
+      ];
+
+      document.getElementById("masterPanels").innerHTML = configs.map(([key, title]) => `
+        <div class="panel">
+          <p class="section-title">${title}</p>
+          <div class="field">
+            <input id="add-${key}" type="text" placeholder="追加する名前を入力" />
+          </div>
+          <button class="full" onclick="addMaster('${key}')">追加</button>
+          <div class="master-list">
+            ${data.masters[key].map(item => `
+              <div class="master-item">
+                <span>${item}</span>
+                <button class="danger small-btn" onclick="removeMaster('${key}', '${item}')">削除</button>
+              </div>
+            `).join("")}
+          </div>
+        </div>
+      `).join("");
+    }
+
+    function addMaster(key) {
+      const input = document.getElementById(`add-${key}`);
+      const value = input.value.trim();
+      if (!value) return;
+      if (data.masters[key].includes(value)) {
+        alert("すでに登録されています。");
+        return;
+      }
+      data.masters[key].push(value);
+      input.value = "";
+      saveData();
+      render();
+    }
+
+    function removeMaster(key, value) {
+      if (!confirm(`${value}を削除しますか？`)) return;
+      data.masters[key] = data.masters[key].filter(v => v !== value);
+      saveData();
+      render();
+    }
+
+    function exportExcel() {
+      const start = document.getElementById("exportStartDate").value;
+      if (!start) {
+        alert("開始日を選択してください。");
+        return;
+      }
+      const dates = Array.from({ length: 7 }, (_, i) => addDays(start, i));
+      const targetWorks = data.works
+        .filter(w => dates.includes(w.date))
+        .sort((a, b) => `${a.date}${a.startTime}`.localeCompare(`${b.date}${b.startTime}`));
+
+      const dailyRows = [];
+      for (const work of targetWorks) {
+        const info = data.dailyInfo[work.date] || {};
+        const dateObj = parseDateKey(work.date);
+        dailyRows.push({
+          日付: work.date,
+          曜日: weekday[dateObj.getDay()],
+          天気: info.weather || "",
+          気温: info.temperature || "",
+          開始時間: work.startTime,
+          終了時間: work.endTime,
+          圃場場所: work.field,
+          作業内容: work.task,
+          作業者: work.workers.join("、"),
+          収量: work.yieldAmount || "",
+          使用資材: work.material || "",
+          備考: work.note || ""
+        });
+      }
+
+      const workerRows = [];
+      for (const work of targetWorks) {
+        for (const worker of work.workers) {
+          workerRows.push({
+            日付: work.date,
+            開始時間: work.startTime,
+            終了時間: work.endTime,
+            作業者: worker,
+            圃場場所: work.field,
+            作業内容: work.task,
+            収量: work.yieldAmount || "",
+            使用資材: work.material || "",
+            備考: work.note || ""
+          });
+        }
+      }
+
+      const wb = XLSX.utils.book_new();
+      const ws1 = XLSX.utils.json_to_sheet(dailyRows.length ? dailyRows : [{ メッセージ: "対象期間の記録がありません" }]);
+      const ws2 = XLSX.utils.json_to_sheet(workerRows.length ? workerRows : [{ メッセージ: "対象期間の記録がありません" }]);
+      XLSX.utils.book_append_sheet(wb, ws1, "週次日報一覧");
+      XLSX.utils.book_append_sheet(wb, ws2, "作業者別集計用");
+
+      const end = addDays(start, 6);
+      XLSX.writeFile(wb, `農業作業日報_${start}_${end}.xlsx`);
+    }
+
+    document.getElementById("weatherInput").addEventListener("change", e => {
+      getDailyInfo().weather = e.target.value;
+      saveData();
+    });
+
+    document.getElementById("temperatureInput").addEventListener("input", e => {
+      getDailyInfo().temperature = e.target.value;
+      saveData();
+    });
+
+    document.getElementById("saveWorkBtn").addEventListener("click", saveWork);
+    document.getElementById("cancelEditBtn").addEventListener("click", resetForm);
+    document.getElementById("exportExcelBtn").addEventListener("click", exportExcel);
+
+    document.getElementById("prevDateBtn").addEventListener("click", () => {
+      data.selectedDate = addDays(data.selectedDate, -1);
+      saveData();
+      resetForm();
+      render();
+    });
+
+    document.getElementById("todayBtn").addEventListener("click", () => {
+      data.selectedDate = toDateKey(new Date());
+      saveData();
+      resetForm();
+      render();
+    });
+
+    document.getElementById("nextDateBtn").addEventListener("click", () => {
+      data.selectedDate = addDays(data.selectedDate, 1);
+      saveData();
+      resetForm();
+      render();
+    });
+
+    document.querySelectorAll(".tab-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        for (const id of ["dailyTab", "manageTab", "exportTab"]) {
+          document.getElementById(id).classList.toggle("hidden", id !== btn.dataset.tab);
+        }
+      });
+    });
+
+    renderTimeSelects();
+    render();
+  </script>
+</body>
+</html>
