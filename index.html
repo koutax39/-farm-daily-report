@@ -436,7 +436,7 @@
     };
 
     let data = loadData();
-    let selectedTask = data.masters.tasks[0];
+    let selectedTasks = data.masters.tasks[0] ? [data.masters.tasks[0]] : [];
     let selectedWorkers = [];
 
     const weekday = ["日", "月", "火", "水", "木", "金", "土"];
@@ -531,11 +531,16 @@
     function renderTaskButtons() {
       const box = document.getElementById("taskButtons");
       box.innerHTML = data.masters.tasks.map(task => `
-        <button type="button" class="choice ${task === selectedTask ? "active" : ""}" data-task="${task}">${task}</button>
+        <button type="button" class="choice ${selectedTasks.includes(task) ? "active" : ""}" data-task="${task}">${task}</button>
       `).join("");
       box.querySelectorAll("button").forEach(btn => {
         btn.addEventListener("click", () => {
-          selectedTask = btn.dataset.task;
+          const task = btn.dataset.task;
+          if (selectedTasks.includes(task)) {
+            selectedTasks = selectedTasks.filter(t => t !== task);
+          } else {
+            selectedTasks.push(task);
+          }
           updateExtras();
           renderTaskButtons();
         });
@@ -562,8 +567,18 @@
     }
 
     function updateExtras() {
-      document.getElementById("harvestExtra").classList.toggle("hidden", selectedTask !== "収穫");
-      document.getElementById("materialExtra").classList.toggle("hidden", !(selectedTask === "追肥" || selectedTask === "消毒"));
+      document.getElementById("harvestExtra").classList.toggle("hidden", !selectedTasks.includes("収穫"));
+      document.getElementById("materialExtra").classList.toggle("hidden", !(selectedTasks.includes("追肥") || selectedTasks.includes("消毒")));
+    }
+
+    function getWorkTasks(work) {
+      if (Array.isArray(work.tasks) && work.tasks.length > 0) return work.tasks;
+      if (work.task) return String(work.task).split("、").filter(Boolean);
+      return [];
+    }
+
+    function getWorkTaskText(work) {
+      return getWorkTasks(work).join("、");
     }
 
     function renderWorkList() {
@@ -582,7 +597,7 @@
           <div class="work-time">${work.startTime}〜${work.endTime}</div>
           <div class="tag-row">
             <span class="tag green">${work.field}</span>
-            <span class="tag orange">${work.task}</span>
+            <span class="tag orange">${getWorkTaskText(work)}</span>
             <span class="tag purple">${work.workers.join("、")}</span>
             ${work.yieldAmount ? `<span class="tag red">収量：${work.yieldAmount}</span>` : ""}
             ${work.material ? `<span class="tag red">資材：${work.material}</span>` : ""}
@@ -611,12 +626,16 @@
       const endTime = document.getElementById("endTime").value;
       const field = document.getElementById("fieldSelect").value;
       const note = document.getElementById("noteInput").value.trim();
-      const yieldAmount = selectedTask === "収穫" ? document.getElementById("yieldInput").value.trim() : "";
-      const material = (selectedTask === "追肥" || selectedTask === "消毒") ? document.getElementById("materialSelect").value : "";
+      const yieldAmount = selectedTasks.includes("収穫") ? document.getElementById("yieldInput").value.trim() : "";
+      const material = (selectedTasks.includes("追肥") || selectedTasks.includes("消毒")) ? document.getElementById("materialSelect").value : "";
       const editingId = document.getElementById("editingId").value;
 
       if (!startTime || !endTime || startTime >= endTime) {
         alert("開始時間と終了時間を確認してください。");
+        return;
+      }
+      if (selectedTasks.length === 0) {
+        alert("作業内容を1つ以上選択してください。");
         return;
       }
       if (selectedWorkers.length === 0) {
@@ -630,7 +649,8 @@
         startTime,
         endTime,
         field,
-        task: selectedTask,
+        task: selectedTasks.join("、"),
+        tasks: [...selectedTasks],
         workers: [...selectedWorkers],
         yieldAmount,
         material,
@@ -658,7 +678,7 @@
       document.getElementById("startTime").value = work.startTime;
       document.getElementById("endTime").value = work.endTime;
       document.getElementById("fieldSelect").value = work.field;
-      selectedTask = work.task;
+      selectedTasks = getWorkTasks(work);
       selectedWorkers = [...work.workers];
       document.getElementById("yieldInput").value = work.yieldAmount || "";
       document.getElementById("materialSelect").value = work.material || data.masters.materials[0] || "";
@@ -686,7 +706,7 @@
       document.getElementById("endTime").value = "10:00";
       document.getElementById("noteInput").value = "";
       document.getElementById("yieldInput").value = "";
-      selectedTask = data.masters.tasks[0] || "その他";
+      selectedTasks = data.masters.tasks[0] ? [data.masters.tasks[0]] : [];
       selectedWorkers = [];
       renderTaskButtons();
       renderWorkerButtons();
@@ -763,7 +783,7 @@
           開始時間: work.startTime,
           終了時間: work.endTime,
           圃場場所: work.field,
-          作業内容: work.task,
+          作業内容: getWorkTaskText(work),
           作業者: work.workers.join("、"),
           収量: work.yieldAmount || "",
           使用資材: work.material || "",
@@ -780,7 +800,7 @@
             終了時間: work.endTime,
             作業者: worker,
             圃場場所: work.field,
-            作業内容: work.task,
+            作業内容: getWorkTaskText(work),
             収量: work.yieldAmount || "",
             使用資材: work.material || "",
             備考: work.note || ""
