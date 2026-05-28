@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>農業作業日報アプリ 使い方</title>
+  <style>
+    :root {
+      --green: #2f855a;
+      --light-green: #e6f4ea;
+      --blue: #3182ce;
+      --light-blue: #e6f0ff;
+      --orange: #ed8936;
+      --light-orange: #fff4e6;
+      --red: #e53e3e;
+      --light-red: #ffecec;
+      --text: #1a202c;
+      --muted: #64748b;
+      --border: #dbe3ed;
+      --bg: #f8fafc;
+      --white: #ffffff;
+      --shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.8;
+    }
+
+    header {
+      background: var(--green);
+      color: white;
+      padding: 32px 18px;
+    }
+
+    .wrap {
+      max-width: 920px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      font-size: 28px;
+      line-height: 1.35;
+      margin: 0 0 8px;
+    }
+
+    .lead {
+      margin: 0;
+      opacity: 0.92;
+      font-size: 16px;
+    }
+
+    main {
+      padding: 22px 14px 44px;
+    }
+
+    section {
+      background: var(--white);
+      border-radius: 12px;
+      box-shadow: var(--shadow);
+      padding: 22px;
+      margin-bottom: 18px;
+    }
+
+    h2 {
+      font-size: 22px;
+      line-height: 1.4;
+      margin: 0 0 14px;
+      border-left: 6px solid var(--green);
+      padding-left: 10px;
+    }
+
+    h3 {
+      font-size: 17px;
+      margin: 20px 0 8px;
+    }
+
+    p {
+      margin: 8px 0;
+    }
+
+    ol,
+    ul {
+      padding-left: 24px;
+      margin: 8px 0 0;
+    }
+
+    li {
+      margin: 6px 0;
+    }
+
+    a {
+      color: var(--blue);
+      font-weight: 700;
+    }
+
+    .app-link {
+      display: block;
+      background: var(--light-green);
+      border: 1px solid #b7e2c6;
+      border-radius: 12px;
+      color: var(--green);
+      font-size: 18px;
+      font-weight: 800;
+      line-height: 1.5;
+      margin-top: 12px;
+      padding: 14px 16px;
+      text-decoration: none;
+      word-break: break-all;
+    }
+
+    .note {
+      background: var(--light-blue);
+      border-left: 5px solid var(--blue);
+      border-radius: 10px;
+      color: #1e4f82;
+      padding: 12px 14px;
+      margin-top: 12px;
+    }
+
+    .warning {
+      background: var(--light-red);
+      border-left: 5px solid var(--red);
+      border-radius: 10px;
+      color: #8a1f1f;
+      padding: 12px 14px;
+      margin-top: 12px;
+    }
+
+    .tip {
+      background: var(--light-orange);
+      border-left: 5px solid var(--orange);
+      border-radius: 10px;
+      color: #8a4b10;
+      padding: 12px 14px;
+      margin-top: 12px;
+    }
+
+    .grid {
+      display: grid;
+      gap: 12px;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      margin-top: 12px;
+    }
+
+    .card {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px;
+      background: #ffffff;
+    }
+
+    .card strong {
+      display: block;
+      font-size: 16px;
+      margin-bottom: 4px;
+    }
+
+    .small {
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      margin-top: 12px;
+      font-size: 14px;
+    }
+
+    th,
+    td {
+      border: 1px solid var(--border);
+      padding: 10px;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      background: var(--light-green);
+      color: var(--green);
+    }
+
+    code {
+      background: #eef2f7;
+      border-radius: 6px;
+      padding: 2px 6px;
+    }
+
+    @media (max-width: 720px) {
+      header {
+        padding: 24px 16px;
+      }
+
+      h1 {
+        font-size: 24px;
+      }
+
+      section {
+        padding: 18px;
+      }
+
+      .grid {
+        grid-template-columns: 1fr;
+      }
+
+      table {
+        display: block;
+        overflow-x: auto;
+        white-space: nowrap;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <h1>農業作業日報アプリ 使い方</h1>
+      <p class="lead">毎日の作業内容、作業者、圃場、収量、使用資材、備考をスマホやPCから記録し、週ごとにExcel出力できます。</p>
+    </div>
+  </header>
+
+  <main>
+    <div class="wrap">
+      <section>
+        <h2>アプリを開く</h2>
+        <p>スマホまたはPCのブラウザで、下記のURLを開いてください。</p>
+        <a class="app-link" href="https://koutax39.github.io/-farm-daily-report/">農業作業日報アプリを開く</a>
+        <p class="note">スマホで使う場合は、このページをホーム画面に追加しておくと次回から開きやすくなります。</p>
+      </section>
+
+      <section>
+        <h2>画面の構成</h2>
+        <div class="grid">
+          <div class="card">
+            <strong>日報</strong>
+            <p>天気、気温、作業記録を入力します。普段の入力はこの画面で行います。</p>
+          </div>
+          <div class="card">
+            <strong>管理</strong>
+            <p>作業者、圃場・場所、作業内容、使用資材を追加・削除します。</p>
+          </div>
+          <div class="card">
+            <strong>出力</strong>
+            <p>指定した週の作業記録をExcelファイルとして出力します。</p>
+          </div>
+          <div class="card">
+            <strong>日付切り替え</strong>
+            <p>画面上部の「前日」「今日」「翌日」で入力する日を切り替えます。</p>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2>日報を入力する</h2>
+        <ol>
+          <li>「日報」タブを開きます。</li>
+          <li>画面上部で入力したい日付になっているか確認します。</li>
+          <li>「今日の基本情報」で天気と気温を入力します。</li>
+          <li>開始時間と終了時間を選択します。</li>
+          <li>圃場・場所を選択します。</li>
+          <li>作業内容を選択します。複数の作業を同時に行った場合は複数選択できます。</li>
+          <li>作業者を1人以上選択します。複数人で作業した場合は全員を選択します。</li>
+          <li>必要に応じて収量、使用資材、備考を入力します。</li>
+          <li>「保存する」を押します。</li>
+        </ol>
+        <p class="tip">例: 消毒をしながら余った人員で葉かきをした場合は、作業内容で「消毒」と「葉かき」の両方を選択します。</p>
+      </section>
+
+      <section>
+        <h2>入力済みの作業を編集・削除する</h2>
+        <ol>
+          <li>「日報」タブで対象の日付を開きます。</li>
+          <li>画面下部の「この日の作業一覧」を確認します。</li>
+          <li>内容を直す場合は「編集」を押します。</li>
+          <li>不要な記録を消す場合は「削除」を押します。</li>
+        </ol>
+        <p class="warning">削除した作業記録は元に戻せません。削除前に日付と内容を確認してください。</p>
+      </section>
+
+      <section>
+        <h2>管理項目を追加・削除する</h2>
+        <p>「管理」タブでは、入力時に選ぶ項目を管理できます。</p>
+        <table>
+          <thead>
+            <tr>
+              <th>項目</th>
+              <th>使い方</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>作業者管理</td>
+              <td>作業者の名前を追加・削除します。</td>
+            </tr>
+            <tr>
+              <td>圃場・場所管理</td>
+              <td>ハウス、苗床、パッケージ場などを追加・削除します。</td>
+            </tr>
+            <tr>
+              <td>作業内容管理</td>
+              <td>灌水、収穫、葉かき、消毒などを追加・削除します。</td>
+            </tr>
+            <tr>
+              <td>使用資材管理</td>
+              <td>液肥、農薬、培土などを追加・削除します。</td>
+            </tr>
+          </tbody>
+        </table>
+        <p class="note">管理項目を変更すると、同じURLを開いている他の人にも反映されます。</p>
+      </section>
+
+      <section>
+        <h2>Excelを出力する</h2>
+        <ol>
+          <li>「出力」タブを開きます。</li>
+          <li>「出力する週の開始日」を選びます。</li>
+          <li>「この週のExcelを出力」を押します。</li>
+          <li>スマホまたはPCにExcelファイルが保存されます。</li>
+        </ol>
+        <p>Excelファイルには、次の2つのシートが入ります。</p>
+        <table>
+          <thead>
+            <tr>
+              <th>シート名</th>
+              <th>内容</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>週次日報一覧</td>
+              <td>日付、天気、気温、時間、圃場、作業内容、作業者、収量、使用資材、備考を一覧で確認できます。</td>
+            </tr>
+            <tr>
+              <td>作業者別集計用</td>
+              <td>作業者ごとに行を分けた集計用データです。Excelで集計しやすい形です。</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>共有保存について</h2>
+        <p>このアプリは、入力した内容を共有保存しています。同じURLを開いた人は、同じ日報データを確認・編集できます。</p>
+        <ul>
+          <li>誰かが作業記録を追加すると、他の端末でも確認できます。</li>
+          <li>誰かが作業記録を編集・削除すると、他の端末にも反映されます。</li>
+          <li>管理項目の追加・削除も共有されます。</li>
+        </ul>
+        <p class="warning">ログインなしで共有しているため、URLを知っている人は日報データを編集できます。URLは社内・関係者内で管理してください。</p>
+      </section>
+
+      <section>
+        <h2>困ったとき</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>状況</th>
+              <th>対応</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>入力した内容が反映されない</td>
+              <td>通信状態を確認し、ページを再読み込みしてください。</td>
+            </tr>
+            <tr>
+              <td>Excelが出力できない</td>
+              <td>ブラウザのダウンロード許可を確認してください。スマホの場合は保存先の確認画面が出ることがあります。</td>
+            </tr>
+            <tr>
+              <td>作業者や圃場が選択肢にない</td>
+              <td>「管理」タブから項目を追加してください。</td>
+            </tr>
+            <tr>
+              <td>間違って入力した</td>
+              <td>対象の日付を開き、「この日の作業一覧」から編集してください。</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <p class="small">最終更新: 2026年5月28日</p>
+    </div>
+  </main>
+</body>
+</html>
