@@ -398,6 +398,7 @@
     </section>
 
     <section id="manageTab" class="hidden">
+      <div id="syncPanel"></div>
       <div id="masterPanels"></div>
     </section>
 
@@ -422,6 +423,32 @@
 
   <script>
     const STORAGE_KEY = "farmDailyReportApp.v1";
+
+    const FIREBASE_CONFIG = {
+      apiKey: "",
+      authDomain: "",
+      projectId: "",
+      storageBucket: "",
+      messagingSenderId: "",
+      appId: ""
+    };
+
+    const CLOUD_COLLECTIONS = {
+      masters: "farmDailyReportMasters",
+      dailyInfo: "farmDailyReportDailyInfo",
+      works: "farmDailyReportWorks"
+    };
+
+    const cloudState = {
+      enabled: false,
+      ready: false,
+      db: null,
+      api: null,
+      syncing: false,
+      status: "この端末内に保存中",
+      statusType: "local",
+      unsubscribers: []
+    };
 
     const initialData = {
       selectedDate: toDateKey(new Date()),
@@ -453,6 +480,150 @@
 
     function saveData() {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    }
+
+    function isFirebaseConfigured() {
+      return Boolean(FIREBASE_CONFIG.apiKey && FIREBASE_CONFIG.projectId && FIREBASE_CONFIG.appId);
+    }
+
+    function setSyncStatus(status, type = "local") {
+      cloudState.status = status;
+      cloudState.statusType = type;
+      renderSyncPanel();
+    }
+
+    function renderSyncPanel() {
+      const panel = document.getElementById("syncPanel");
+      if (!panel) return;
+      const isCloud = cloudState.ready;
+      panel.innerHTML = `
+        <div class="panel">
+          <p class="section-title">共有保存</p>
+          <div class="tag-row">
+            <span class="tag ${isCloud ? "green" : "gray"}">${escapeHtml(cloudState.status)}</span>
+          </div>
+          <p class="card-note">${isCloud ? "この端末で追加・編集した内容は、同じURLを開いた他の端末にも反映されます。" : "Firebase設定を入れるまでは、今まで通りこの端末内だけに保存されます。"}</p>
+          ${isCloud ? `<button class="full secondary" onclick="migrateLocalDataToCloud()">この端末の保存データを共有へ移す</button>` : ""}
+        </div>
+      `;
+    }
+
+    async function initCloudSync() {
+      if (!isFirebaseConfigured()) {
+        setSyncStatus("この端末内に保存中", "local");
+        return;
+      }
+
+      try {
+        setSyncStatus("共有保存に接続中", "local");
+        const appModule = await import("https://www.gstatic.com/firebasejs/12.13.0/firebase-app.js");
+        const firestoreModule = await import("https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js");
+        const app = appModule.initializeApp(FIREBASE_CONFIG);
+
+        cloudState.db = firestoreModule.getFirestore(app);
+        cloudState.api = firestoreModule;
+        cloudState.enabled = true;
+        cloudState.ready = true;
+        setSyncStatus("共有保存中", "cloud");
+        subscribeCloudData();
+      } catch (error) {
+        console.error(error);
+        setSyncStatus("共有保存に接続できません", "local");
+      }
+    }
+
+    function subscribeCloudData() {
+      const { collection, doc, onSnapshot, setDoc } = cloudState.api;
+      const db = cloudState.db;
+
+      cloudState.unsubscribers.forEach(unsubscribe => unsubscribe());
+      cloudState.unsubscribers = [];
+
+      cloudState.unsubscribers.push(onSnapshot(doc(db, CLOUD_COLLECTIONS.masters, "main"), async snapshot => {
+        if (snapshot.exists()) {
+          cloudState.syncing = true;
+          data.masters = { ...structuredClone(initialData.masters), ...snapshot.data() };
+          saveData();
+          cloudState.syncing = false;
+          render();
+        } else {
+          await setDoc(doc(db, CLOUD_COLLECTIONS.masters, "main"), data.masters);
+        }
+      }));
+
+      cloudState.unsubscribers.push(onSnapshot(collection(db, CLOUD_COLLECTIONS.dailyInfo), snapshot => {
+        cloudState.syncing = true;
+        const dailyInfo = {};
+        snapshot.forEach(item => {
+          dailyInfo[item.id] = item.data();
+        });
+        data.dailyInfo = dailyInfo;
+        saveData();
+        cloudState.syncing = false;
+        renderDailyInfo();
+        renderWorkList();
+      }));
+
+      cloudState.unsubscribers.push(onSnapshot(collection(db, CLOUD_COLLECTIONS.works), snapshot => {
+        cloudState.syncing = true;
+        data.works = snapshot.docs.map(item => ({ id: item.id, ...item.data() }));
+        saveData();
+        cloudState.syncing = false;
+        renderWorkList();
+      }));
+    }
+
+    async function persistMasters() {
+      saveData();
+      if (!cloudState.ready || cloudState.syncing) return;
+      const { doc, setDoc } = cloudState.api;
+      await setDoc(doc(cloudState.db, CLOUD_COLLECTIONS.masters, "main"), data.masters);
+    }
+
+    async function persistDailyInfo(dateKey) {
+      saveData();
+      if (!cloudState.ready || cloudState.syncing) return;
+      const { doc, setDoc } = cloudState.api;
+      await setDoc(doc(cloudState.db, CLOUD_COLLECTIONS.dailyInfo, dateKey), data.dailyInfo[dateKey] || {});
+    }
+
+    async function persistWork(record) {
+      saveData();
+      if (!cloudState.ready || cloudState.syncing) return;
+      const { doc, setDoc } = cloudState.api;
+      await setDoc(doc(cloudState.db, CLOUD_COLLECTIONS.works, record.id), record);
+    }
+
+    async function persistDeleteWork(id) {
+      saveData();
+      if (!cloudState.ready || cloudState.syncing) return;
+      const { doc, deleteDoc } = cloudState.api;
+      await deleteDoc(doc(cloudState.db, CLOUD_COLLECTIONS.works, id));
+    }
+
+    async function migrateLocalDataToCloud() {
+      if (!cloudState.ready) {
+        alert("共有保存に接続できていません。");
+        return;
+      }
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (!saved) {
+        alert("この端末に移行できる保存データがありません。");
+        return;
+      }
+      const localData = JSON.parse(saved);
+      if (!confirm("この端末に残っている保存データを共有保存へ移しますか？")) return;
+
+      const { doc, setDoc } = cloudState.api;
+      await setDoc(doc(cloudState.db, CLOUD_COLLECTIONS.masters, "main"), localData.masters || data.masters);
+
+      for (const [dateKey, info] of Object.entries(localData.dailyInfo || {})) {
+        await setDoc(doc(cloudState.db, CLOUD_COLLECTIONS.dailyInfo, dateKey), info);
+      }
+      for (const work of localData.works || []) {
+        await setDoc(doc(cloudState.db, CLOUD_COLLECTIONS.works, work.id), work);
+      }
+      alert("共有保存へ移しました。");
     }
 
     function toDateKey(date) {
@@ -502,6 +673,7 @@
     function render() {
       document.getElementById("dateDisplay").textContent = formatDateDisplay(data.selectedDate);
       renderDailyInfo();
+      renderSyncPanel();
       renderMasters();
       renderTaskButtons();
       renderWorkerButtons();
@@ -621,7 +793,7 @@
       }[s]));
     }
 
-    function saveWork() {
+    async function saveWork() {
       const startTime = document.getElementById("startTime").value;
       const endTime = document.getElementById("endTime").value;
       const field = document.getElementById("fieldSelect").value;
@@ -664,7 +836,7 @@
         data.works.push(record);
       }
 
-      saveData();
+      await persistWork(record);
       resetForm();
       renderWorkList();
       alert("保存しました。");
@@ -690,10 +862,10 @@
       window.scrollTo({ top: 0, behavior: "smooth" });
     }
 
-    function deleteWork(id) {
+    async function deleteWork(id) {
       if (!confirm("この作業記録を削除しますか？")) return;
       data.works = data.works.filter(w => w.id !== id);
-      saveData();
+      await persistDeleteWork(id);
       renderWorkList();
     }
 
@@ -739,7 +911,7 @@
       `).join("");
     }
 
-    function addMaster(key) {
+    async function addMaster(key) {
       const input = document.getElementById(`add-${key}`);
       const value = input.value.trim();
       if (!value) return;
@@ -749,14 +921,14 @@
       }
       data.masters[key].push(value);
       input.value = "";
-      saveData();
+      await persistMasters();
       render();
     }
 
-    function removeMaster(key, value) {
+    async function removeMaster(key, value) {
       if (!confirm(`${value}を削除しますか？`)) return;
       data.masters[key] = data.masters[key].filter(v => v !== value);
-      saveData();
+      await persistMasters();
       render();
     }
 
@@ -818,14 +990,14 @@
       XLSX.writeFile(wb, `農業作業日報_${start}_${end}.xlsx`);
     }
 
-    document.getElementById("weatherInput").addEventListener("change", e => {
+    document.getElementById("weatherInput").addEventListener("change", async e => {
       getDailyInfo().weather = e.target.value;
-      saveData();
+      await persistDailyInfo(data.selectedDate);
     });
 
-    document.getElementById("temperatureInput").addEventListener("input", e => {
+    document.getElementById("temperatureInput").addEventListener("input", async e => {
       getDailyInfo().temperature = e.target.value;
-      saveData();
+      await persistDailyInfo(data.selectedDate);
     });
 
     document.getElementById("saveWorkBtn").addEventListener("click", saveWork);
@@ -865,6 +1037,7 @@
 
     renderTimeSelects();
     render();
+    initCloudSync();
   </script>
 </body>
 </html>
