@@ -300,6 +300,34 @@
       font-weight: 700;
     }
 
+    .summary-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    .summary-card {
+      background: var(--light-gray);
+      border-radius: 14px;
+      padding: 12px;
+      border: 1px solid var(--border);
+    }
+
+    .summary-label {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+      margin-bottom: 4px;
+    }
+
+    .summary-value {
+      color: var(--green);
+      font-size: 22px;
+      font-weight: 900;
+      line-height: 1.2;
+    }
+
     .small-btn {
       padding: 8px 10px;
       font-size: 12px;
@@ -412,6 +440,11 @@
         <button class="full" id="exportExcelBtn">この週のExcelを出力</button>
         <p class="card-note">出力したExcelファイルをスマホに保存し、Gmailで会社PCへ送る運用を想定しています。</p>
       </div>
+
+      <div class="panel">
+        <p class="section-title">作業時間集計</p>
+        <div id="workSummary"></div>
+      </div>
     </section>
   </main>
 
@@ -464,10 +497,15 @@
     };
 
     let data = loadData();
+    data.selectedDate = toDateKey(new Date());
     let selectedTasks = data.masters.tasks[0] ? [data.masters.tasks[0]] : [];
     let selectedWorkers = [];
 
     const weekday = ["日", "月", "火", "水", "木", "金", "土"];
+    const BREAK_PERIODS = [
+      ["10:00", "10:15"],
+      ["15:00", "15:15"]
+    ];
 
     function loadData() {
       const saved = localStorage.getItem(STORAGE_KEY);
@@ -571,6 +609,7 @@
         saveData();
         cloudState.syncing = false;
         renderWorkList();
+        renderWorkSummary();
       }));
     }
 
@@ -650,6 +689,47 @@
       return toDateKey(date);
     }
 
+    function timeToMinutes(time) {
+      const [h, m] = String(time || "00:00").split(":").map(Number);
+      return h * 60 + m;
+    }
+
+    function getOverlapMinutes(start, end, breakStart, breakEnd) {
+      return Math.max(0, Math.min(end, breakEnd) - Math.max(start, breakStart));
+    }
+
+    function getNetWorkMinutes(work) {
+      const start = timeToMinutes(work.startTime);
+      const end = timeToMinutes(work.endTime);
+      if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return 0;
+      const breakMinutes = BREAK_PERIODS.reduce((total, [breakStart, breakEnd]) => (
+        total + getOverlapMinutes(start, end, timeToMinutes(breakStart), timeToMinutes(breakEnd))
+      ), 0);
+      return Math.max(0, end - start - breakMinutes);
+    }
+
+    function getExtendedWorkMinutes(work) {
+      const workerCount = Array.isArray(work.workers) ? work.workers.length : 0;
+      return getNetWorkMinutes(work) * workerCount;
+    }
+
+    function formatWorkMinutes(minutes) {
+      const safeMinutes = Math.max(0, Math.round(minutes || 0));
+      const hours = Math.floor(safeMinutes / 60);
+      const rest = safeMinutes % 60;
+      if (hours === 0) return `${rest}分`;
+      if (rest === 0) return `${hours}時間`;
+      return `${hours}時間${rest}分`;
+    }
+
+    function getWorksForDates(dates) {
+      return data.works.filter(work => dates.includes(work.date));
+    }
+
+    function sumExtendedWorkMinutes(works) {
+      return works.reduce((total, work) => total + getExtendedWorkMinutes(work), 0);
+    }
+
     function makeTimeOptions() {
       const options = [];
       for (let h = 5; h <= 20; h++) {
@@ -681,6 +761,7 @@
       renderSelects();
       renderWorkList();
       document.getElementById("exportStartDate").value = data.selectedDate;
+      renderWorkSummary();
     }
 
     function getDailyInfo() {
@@ -784,6 +865,33 @@
       `).join("");
     }
 
+    function renderWorkSummary() {
+      const box = document.getElementById("workSummary");
+      if (!box) return;
+
+      const start = document.getElementById("exportStartDate").value || data.selectedDate;
+      const weekDates = Array.from({ length: 7 }, (_, i) => addDays(start, i));
+      const weekEnd = addDays(start, 6);
+      const weekWorks = getWorksForDates(weekDates);
+      const totalMinutes = sumExtendedWorkMinutes(data.works);
+      const weekMinutes = sumExtendedWorkMinutes(weekWorks);
+
+      box.innerHTML = `
+        <div class="summary-grid">
+          <div class="summary-card">
+            <div class="summary-label">全期間の累積</div>
+            <div class="summary-value">${formatWorkMinutes(totalMinutes)}</div>
+          </div>
+          <div class="summary-card">
+            <div class="summary-label">選択週の累積</div>
+            <div class="summary-value">${formatWorkMinutes(weekMinutes)}</div>
+          </div>
+        </div>
+        <p class="card-note">対象週：${start}〜${weekEnd}</p>
+        <p class="card-note">作業時間は10:00〜10:15、15:00〜15:15に重なった休憩時間を差し引き、作業者人数分を合計しています。</p>
+      `;
+    }
+
     function escapeHtml(str) {
       return String(str).replace(/[&<>'"]/g, s => ({
         "&": "&amp;",
@@ -840,6 +948,7 @@
       await persistWork(record);
       resetForm();
       renderWorkList();
+      renderWorkSummary();
       alert("保存しました。");
     }
 
@@ -868,6 +977,7 @@
       data.works = data.works.filter(w => w.id !== id);
       await persistDeleteWork(id);
       renderWorkList();
+      renderWorkSummary();
     }
 
     function resetForm() {
@@ -955,6 +1065,8 @@
           気温: info.temperature || "",
           開始時間: work.startTime,
           終了時間: work.endTime,
+          作業時間: formatWorkMinutes(getNetWorkMinutes(work)),
+          延べ作業時間: formatWorkMinutes(getExtendedWorkMinutes(work)),
           圃場場所: work.field,
           作業内容: getWorkTaskText(work),
           作業者: work.workers.join("、"),
@@ -971,6 +1083,7 @@
             日付: work.date,
             開始時間: work.startTime,
             終了時間: work.endTime,
+            作業時間: formatWorkMinutes(getNetWorkMinutes(work)),
             作業者: worker,
             圃場場所: work.field,
             作業内容: getWorkTaskText(work),
@@ -1004,6 +1117,7 @@
     document.getElementById("saveWorkBtn").addEventListener("click", saveWork);
     document.getElementById("cancelEditBtn").addEventListener("click", resetForm);
     document.getElementById("exportExcelBtn").addEventListener("click", exportExcel);
+    document.getElementById("exportStartDate").addEventListener("change", renderWorkSummary);
 
     document.getElementById("prevDateBtn").addEventListener("click", () => {
       data.selectedDate = addDays(data.selectedDate, -1);
